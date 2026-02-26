@@ -108,7 +108,7 @@ Environment variable: `DECKY_PLUGIN_VERSION`.
 e.g.: `0.0.1`
 """
 
-DECKY_PLUGIN_AUTHOR: str
+DECKY_PLUGIN_AUTHOR: str "Tarek Auf der Strasse"
 """
 The author of the plugin as specified in the 'plugin.json'.
 Environment variable: `DECKY_PLUGIN_AUTHOR`.
