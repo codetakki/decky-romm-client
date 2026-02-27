@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { FaShip } from "react-icons/fa";
 import { SettingsPage, SETTINGS_ROUTE } from "./Settings";
+import { LibraryPage, LIBRARY_ROUTE } from "./Library";
 
 // import logo from "../assets/logo.png";
 
@@ -63,6 +64,17 @@ function Content() {
           <ButtonItem
             layout="below"
             onClick={() => {
+              Navigation.Navigate(LIBRARY_ROUTE);
+              Navigation.CloseSideMenus();
+            }}
+          >
+            ROM Library
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={() => {
               Navigation.Navigate(SETTINGS_ROUTE);
               Navigation.CloseSideMenus();
             }}
@@ -79,6 +91,7 @@ export default definePlugin(() => {
   console.log("Template plugin initializing, this is called once on frontend startup")
 
   routerHook.addRoute(SETTINGS_ROUTE, SettingsPage, { exact: true });
+  routerHook.addRoute(LIBRARY_ROUTE, LibraryPage, { exact: true });
 
   // Add an event listener to the "timer_event" event from the backend
   const listener = addEventListener<[
@@ -107,6 +120,7 @@ export default definePlugin(() => {
       console.log("Unloading")
       removeEventListener("timer_event", listener);
       routerHook.removeRoute(SETTINGS_ROUTE);
+      routerHook.removeRoute(LIBRARY_ROUTE);
     },
   };
 });

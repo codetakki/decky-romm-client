@@ -52,8 +52,10 @@ class SearchResult:
     name: str | None
     platform_id: int
     platform_name: str
+    platform_slug: str
     file_name: str
     file_size_bytes: int
+    url_cover: str | None
 
     @classmethod
     def from_simple_schema(cls, rom: SimpleRomSchema) -> SearchResult:
@@ -62,9 +64,24 @@ class SearchResult:
             name=rom.name,
             platform_id=rom.platform_id,
             platform_name=rom.platform_display_name,
+            platform_slug=rom.platform_slug,
             file_name=rom.fs_name,
             file_size_bytes=rom.fs_size_bytes,
+            url_cover=rom.url_cover,
         )
+
+    def to_dict(self) -> dict:
+        """Return a plain dict suitable for JSON serialisation to the frontend."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "platform_id": self.platform_id,
+            "platform_name": self.platform_name,
+            "platform_slug": self.platform_slug,
+            "file_name": self.file_name,
+            "file_size_bytes": self.file_size_bytes,
+            "url_cover": self.url_cover,
+        }
 
 
 class RommClient:

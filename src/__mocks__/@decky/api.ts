@@ -3,14 +3,13 @@
  *
  * Provides stub implementations of all Decky Loader API functions
  * so components can be rendered and tested outside the Steam Deck environment.
+ *
+ * Per-route callable mocks are stored in `callableMocks` from
+ * `src/__tests__/decky-api-helpers.ts`. Import that helper in your tests
+ * to configure return values.
  */
 import { vi } from "vitest";
-
-// callable returns a function that, when called, resolves to undefined by default.
-// Each route gets a stable vi.fn() stored in callableMocks so tests can configure them:
-//   import { callableMocks } from "@decky/api";
-//   callableMocks["settings_getSetting"].mockResolvedValue("http://...");
-export const callableMocks: Record<string, ReturnType<typeof vi.fn>> = {};
+import { callableMocks } from "../../__tests__/decky-api-helpers";
 
 export const call = vi.fn(async () => undefined);
 
