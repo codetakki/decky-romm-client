@@ -1,18 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { callableMocks, toaster } from "@decky/api";
+import { toaster } from "@decky/api";
+import { callableMocks, resetCallableMocks } from "./decky-api-helpers";
 import { SettingsPage } from "../Settings";
 
 describe("SettingsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset each route mock to the default (resolve undefined) rather than replacing.
-    // This preserves the references held by module-level variables in Settings.tsx.
-    for (const mock of Object.values(callableMocks)) {
-      mock.mockReset();
-      mock.mockResolvedValue(undefined);
-    }
+    resetCallableMocks();
   });
 
   it("shows loading state then renders fields after settings load", async () => {

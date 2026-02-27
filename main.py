@@ -1,4 +1,5 @@
 import os
+import sys
 
 # The decky plugin module is located at decky-loader/plugin
 # For easy intellisense checkout the decky-loader code repo
@@ -8,9 +9,28 @@ import asyncio
 from settings import SettingsManager
 from decky import logger
 
+# Make the rom-m-api-client package importable
+PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
+ROM_CLIENT_DIR = os.path.join(PLUGIN_DIR, "rom-m-api-client")
+if ROM_CLIENT_DIR not in sys.path:
+    sys.path.insert(0, ROM_CLIENT_DIR)
+
+import importlib.util
+_spec = importlib.util.spec_from_file_location(
+    "romm_client", os.path.join(ROM_CLIENT_DIR, "romm-client.py")
+)
+_romm_mod = importlib.util.module_from_spec(_spec)
+sys.modules["romm_client"] = _romm_mod
+_spec.loader.exec_module(_romm_mod)
+
+RommClient = _romm_mod.RommClient
+
 import os
 settings = SettingsManager(name="settings-romm-client")
 settings.read()
+
+# Shared RomM client instance (created on login, reused across calls)
+_romm_client = None
 
 
 class Plugin:    
@@ -26,6 +46,48 @@ class Plugin:
     async def settings_setSetting(self, key: str, value):
         logger.info('Set {}: {}'.format(key, value))
         return settings.setSetting(key, value)
+
+    # ------------------------------------------------------------------
+    # RomM API bridge
+    # ------------------------------------------------------------------
+
+    async def romm_login(self):
+        """Log in to RomM using the saved settings. Returns True on success."""
+        global _romm_client
+        url = settings.getSetting("rommUrl", "")
+        user = settings.getSetting("username", "")
+        passwd = settings.getSetting("password", "")
+        if not url or not user or not passwd:
+            raise ValueError("RomM connection settings are incomplete. Configure them in Settings.")
+        logger.info("Logging in to RomM at {}".format(url))
+        client = RommClient(url)
+        client.login(user, passwd)
+        _romm_client = client
+        logger.info("RomM login successful")
+        return True
+
+    async def search_roms(self, search_term: str, limit: int = 50):
+        """Search for ROMs. Logs in automatically if needed.
+        
+        Returns a list of dicts with keys: id, name, platform_id, platform_name,
+        platform_slug, file_name, file_size_bytes, url_cover.
+        """
+        global _romm_client
+        if _romm_client is None or not _romm_client.is_authenticated:
+            await self.romm_login()
+        
+        base_url = settings.getSetting("rommUrl", "").rstrip("/")
+        results = _romm_client.search_roms(search_term, limit=limit)
+        
+        items = []
+        for r in results:
+            d = r.to_dict()
+            # Build full cover URL from relative path if url_cover is relative
+            if d.get("url_cover") and not d["url_cover"].startswith("http"):
+                d["url_cover"] = base_url + "/" + d["url_cover"].lstrip("/")
+            items.append(d)
+        return items
+
     # A normal method. It can be called from the TypeScript side using @decky/api.
     async def add(self, left: int, right: int) -> int:
         return left + right

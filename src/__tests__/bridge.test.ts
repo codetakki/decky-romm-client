@@ -12,7 +12,8 @@
  * the code under test, or directly call the mock to verify arguments.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { callable, callableMocks } from "@decky/api";
+import { callable } from "@decky/api";
+import { callableMocks } from "./decky-api-helpers";
 
 describe("Backend bridge (scaffold)", () => {
   beforeEach(() => {

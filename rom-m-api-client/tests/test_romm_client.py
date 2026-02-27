@@ -90,8 +90,10 @@ def _fake_simple_rom(rom_id: int = 1, name: str = "Super Mario World"):
     mock.name = name
     mock.platform_id = 10
     mock.platform_display_name = "SNES"
+    mock.platform_slug = "snes"
     mock.fs_name = f"{name.replace(' ', '_')}.sfc"
     mock.fs_size_bytes = 1_048_576
+    mock.url_cover = f"/assets/romm/resources/{name.replace(' ', '_')}/cover/small.png"
     return mock
 
 
@@ -360,7 +362,37 @@ class TestSearchResultDataclass:
         assert result.id == 7
         assert result.name == "Kirby"
         assert result.platform_name == "SNES"
+        assert result.platform_slug == "snes"
         assert result.file_name == "Kirby.sfc"
+        assert result.url_cover == "/assets/romm/resources/Kirby/cover/small.png"
+
+    def test_from_simple_schema_null_cover(self):
+        mock_rom = _fake_simple_rom(8, "Tetris")
+        mock_rom.url_cover = None
+        result = SearchResult.from_simple_schema(mock_rom)
+        assert result.url_cover is None
+
+    def test_to_dict(self):
+        mock_rom = _fake_simple_rom(9, "Zelda")
+        result = SearchResult.from_simple_schema(mock_rom)
+        d = result.to_dict()
+        assert isinstance(d, dict)
+        assert d["id"] == 9
+        assert d["name"] == "Zelda"
+        assert d["platform_name"] == "SNES"
+        assert d["platform_slug"] == "snes"
+        assert d["file_name"] == "Zelda.sfc"
+        assert d["url_cover"] == "/assets/romm/resources/Zelda/cover/small.png"
+        assert d["file_size_bytes"] == 1_048_576
+
+    def test_to_dict_null_fields(self):
+        mock_rom = _fake_simple_rom(10, "Test")
+        mock_rom.name = None
+        mock_rom.url_cover = None
+        result = SearchResult.from_simple_schema(mock_rom)
+        d = result.to_dict()
+        assert d["name"] is None
+        assert d["url_cover"] is None
 
 
 # ===================================================================
