@@ -2,10 +2,15 @@
 # Deploy built plugin locally to ~/homebrew/plugins/ (for WSL2 / desktop dev)
 set -e
 
-PLUGIN_NAME="RomM-Client"
+WORKSPACE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Derive plugin name from plugin.json (single source of truth)
+PLUGIN_JSON_NAME="$(python3 -c "import json; print(json.load(open('${WORKSPACE_DIR}/plugin.json'))['name'])")"
+# Folder name on disk uses hyphens instead of spaces
+PLUGIN_NAME="${PLUGIN_JSON_NAME// /-}"
+
 HOMEBREW_PLUGINS="$HOME/homebrew/plugins"
 PLUGIN_DIR="${HOMEBREW_PLUGINS}/${PLUGIN_NAME}"
-WORKSPACE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="${WORKSPACE_DIR}/out"
 
 echo "=== Local Deploy: ${PLUGIN_NAME} ==="

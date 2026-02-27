@@ -85,6 +85,15 @@
             "problemMatcher": []
         },
         //DEPLOY TASKS
+        //Validate the built plugin before deploying
+        {
+            "label": "validate-build",
+            "detail": "Verify the plugin zip contains all required files and code",
+            "type": "shell",
+            "group": "none",
+            "command": "bash ${workspaceFolder}/scripts/validate-build.sh",
+            "problemMatcher": []
+        },
         //Copies the zip file of the built plugin to the plugins folder
         {
             "label": "copyzip",
@@ -100,10 +109,10 @@
         //
         {
             "label": "extractzip",
-            "detail": "",
+            "detail": "Extract deployed plugin zip on deck",
             "type": "shell",
             "group": "none",
-            "command": "echo '${config:deckdir}/homebrew/plugins/${config:pluginname}.zip' && ssh ${config:deckuser}@${config:deckip} -p ${config:deckport} ${config:deckkey} 'echo ${config:deckpass} | sudo -S mkdir -m 755 -p \"$(echo \"${config:deckdir}/homebrew/plugins/${config:pluginname}\" | sed \"s| |-|g\")\" && echo ${config:deckpass} | sudo -S chown ${config:deckuser}:${config:deckuser} \"$(echo \"${config:deckdir}/homebrew/plugins/${config:pluginname}\" | sed \"s| |-|g\")\" && echo ${config:deckpass} | sudo -S bsdtar -xzpf \"${config:deckdir}/homebrew/plugins/${config:pluginname}.zip\" -C \"$(echo \"${config:deckdir}/homebrew/plugins/${config:pluginname}\" | sed \"s| |-|g\")\" --strip-components=1 --fflags '",
+            "command": "echo '${config:deckdir}/homebrew/plugins/${config:pluginname}.zip' && ssh ${config:deckuser}@${config:deckip} -p ${config:deckport} ${config:deckkey} 'PLUGIN_DIR=\"$(echo \"${config:deckdir}/homebrew/plugins/${config:pluginname}\" | sed \"s| |-|g\")\" && echo ${config:deckpass} | sudo -S mkdir -m 755 -p \"$PLUGIN_DIR\" && echo ${config:deckpass} | sudo -S chown ${config:deckuser}:${config:deckuser} \"$PLUGIN_DIR\" && echo ${config:deckpass} | sudo -S bsdtar -xzpf \"${config:deckdir}/homebrew/plugins/${config:pluginname}.zip\" -C \"$PLUGIN_DIR\" --strip-components=1 --fflags && echo ${config:deckpass} | sudo -S rm -f \"${config:deckdir}/homebrew/plugins/${config:pluginname}.zip\"'",
             "problemMatcher": []
         },
         //"All-in-one" deploy task
@@ -112,6 +121,7 @@
             "dependsOrder": "sequence",
             "group": "none",
             "dependsOn": [
+                "validate-build",
                 "copyzip",
                 "extractzip"
             ],
@@ -172,6 +182,7 @@
             "group": "none",
             "dependsOn": [
                 "build",
+                "validate-build",
                 "deploy:local"
             ],
             "problemMatcher": []
