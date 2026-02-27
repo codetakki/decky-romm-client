@@ -146,5 +146,45 @@
             "command": "ssh ${config:deckuser}@${config:deckip} -p ${config:deckport} ${config:deckkey} 'echo '${config:deckpass}' | sudo -S systemctl restart plugin_loader'",
             "problemMatcher": []
         },
+        //TEST TASKS
+        //Run frontend (Vitest) unit tests
+        {
+            "label": "test:frontend",
+            "detail": "Run frontend unit tests with Vitest",
+            "type": "shell",
+            "group": "test",
+            "command": "pnpm test",
+            "problemMatcher": []
+        },
+        //Run Python unit tests (excluding integration tests)
+        {
+            "label": "test:python",
+            "detail": "Run Python unit tests with pytest",
+            "type": "shell",
+            "group": "test",
+            "command": "cd ${workspaceFolder}/rom-m-api-client && python3 -m pytest tests/ -v -m 'not integration'",
+            "problemMatcher": []
+        },
+        //Run Python integration tests
+        {
+            "label": "test:python:integration",
+            "detail": "Run Python integration tests against live server",
+            "type": "shell",
+            "group": "test",
+            "command": "cd ${workspaceFolder}/rom-m-api-client && python3 -m pytest tests/ -v -m integration",
+            "problemMatcher": []
+        },
+        //"All-in-one" test task — runs frontend + Python unit tests
+        {
+            "label": "test",
+            "detail": "Run all unit tests (frontend + Python)",
+            "group": "test",
+            "dependsOrder": "parallel",
+            "dependsOn": [
+                "test:frontend",
+                "test:python"
+            ],
+            "problemMatcher": []
+        },
     ]
 }
