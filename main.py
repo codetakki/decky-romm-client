@@ -5,8 +5,27 @@ import os
 # and add the `decky-loader/plugin/imports` path to `python.analysis.extraPaths` in `.vscode/settings.json`
 import decky
 import asyncio
+from settings import SettingsManager
+from decky import logger
 
-class Plugin:
+import os
+settings = SettingsManager(name="settings-romm-client")
+settings.read()
+
+
+class Plugin:    
+    async def settings_read(self):
+        logger.info('Reading settings')
+        return settings.read()
+    async def settings_commit(self):
+        logger.info('Saving settings')
+        return settings.commit()
+    async def settings_getSetting(self, key: str, defaults):
+        logger.info('Get {}'.format(key))
+        return settings.getSetting(key, defaults)
+    async def settings_setSetting(self, key: str, value):
+        logger.info('Set {}: {}'.format(key, value))
+        return settings.setSetting(key, value)
     # A normal method. It can be called from the TypeScript side using @decky/api.
     async def add(self, left: int, right: int) -> int:
         return left + right

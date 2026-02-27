@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "rom-m-api-client"
+version = "4.6.1"
+description = "A client library for accessing RomM API"
+authors = []
+readme = "README.md"
+packages = [
+    { include = "rom_m_api_client" },
+]
+include = ["rom_m_api_client/py.typed"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+httpx = ">=0.23.0,<0.29.0"
+attrs = ">=22.2.0"
+python-dateutil = "^2.8.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: end-to-end tests against a live RomM server (set ROMM_TEST_URL env var)",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["F", "I", "UP"]
