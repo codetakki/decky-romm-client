@@ -45,7 +45,9 @@ RommClientError = romm_client.RommClientError
 LoginError = romm_client.LoginError
 SearchError = romm_client.SearchError
 DownloadError = romm_client.DownloadError
+PlatformError = romm_client.PlatformError
 SearchResult = romm_client.SearchResult
+PlatformResult = romm_client.PlatformResult
 
 from rom_m_api_client.types import Response
 
@@ -115,6 +117,19 @@ def _fake_detailed_rom(rom_id: int = 1, name: str = "Super Mario World"):
     mock.name = name
     mock.fs_name = f"{name.replace(' ', '_')}.sfc"
     mock.fs_size_bytes = 1_048_576
+    return mock
+
+
+def _fake_platform_schema(platform_id: int = 1, name: str = "snes", display_name: str = "Super Nintendo"):
+    """Build a minimal PlatformSchema-like mock."""
+    mock = MagicMock()
+    mock.id = platform_id
+    mock.name = name
+    mock.slug = name
+    mock.fs_slug = name
+    mock.display_name = display_name
+    mock.rom_count = 42
+    mock.url_logo = f"/assets/romm/resources/{name}/logo.png"
     return mock
 
 
@@ -395,6 +410,95 @@ class TestSearchResultDataclass:
         assert d["url_cover"] is None
 
 
+class TestPlatformResultDataclass:
+    """Tests for the PlatformResult dataclass / from_schema factory."""
+
+    def test_from_schema(self):
+        mock_platform = _fake_platform_schema(5, "gba", "Game Boy Advance")
+        result = PlatformResult.from_schema(mock_platform)
+        assert result.id == 5
+        assert result.name == "gba"
+        assert result.slug == "gba"
+        assert result.fs_slug == "gba"
+        assert result.display_name == "Game Boy Advance"
+        assert result.rom_count == 42
+        assert result.url_logo == "/assets/romm/resources/gba/logo.png"
+
+    def test_from_schema_no_logo(self):
+        mock_platform = _fake_platform_schema(6, "n64", "Nintendo 64")
+        del mock_platform.url_logo  # simulate missing attribute
+        result = PlatformResult.from_schema(mock_platform)
+        assert result.url_logo is None
+
+    def test_to_dict(self):
+        mock_platform = _fake_platform_schema(7, "snes", "Super Nintendo")
+        result = PlatformResult.from_schema(mock_platform)
+        d = result.to_dict()
+        assert isinstance(d, dict)
+        assert d["id"] == 7
+        assert d["name"] == "snes"
+        assert d["slug"] == "snes"
+        assert d["display_name"] == "Super Nintendo"
+        assert d["rom_count"] == 42
+        assert d["url_logo"] == "/assets/romm/resources/snes/logo.png"
+
+    def test_to_dict_keys(self):
+        mock_platform = _fake_platform_schema()
+        result = PlatformResult.from_schema(mock_platform)
+        d = result.to_dict()
+        expected_keys = {"id", "name", "slug", "fs_slug", "display_name", "rom_count", "url_logo"}
+        assert set(d.keys()) == expected_keys
+
+
+class TestGetPlatforms:
+    """Tests for the RommClient.get_platforms method."""
+
+    def _auth_client(self):
+        client = RommClient("https://romm.example.com")
+        client._client = MagicMock()
+        return client
+
+    @patch("romm_client.get_platforms_api_platforms_get")
+    def test_get_platforms_success(self, mock_get):
+        platforms = [
+            _fake_platform_schema(1, "snes", "Super Nintendo"),
+            _fake_platform_schema(2, "gba", "Game Boy Advance"),
+        ]
+        mock_get.sync_detailed.return_value = _ok_response(platforms)
+        client = self._auth_client()
+        result = client.get_platforms()
+        assert len(result) == 2
+        assert all(isinstance(p, PlatformResult) for p in result)
+        assert result[0].display_name == "Super Nintendo"
+        assert result[1].display_name == "Game Boy Advance"
+
+    @patch("romm_client.get_platforms_api_platforms_get")
+    def test_get_platforms_empty(self, mock_get):
+        mock_get.sync_detailed.return_value = _ok_response([])
+        client = self._auth_client()
+        result = client.get_platforms()
+        assert result == []
+
+    @patch("romm_client.get_platforms_api_platforms_get")
+    def test_get_platforms_http_error(self, mock_get):
+        mock_get.sync_detailed.return_value = _error_response(500, b"Internal Server Error")
+        client = self._auth_client()
+        with pytest.raises(PlatformError, match="500"):
+            client.get_platforms()
+
+    @patch("romm_client.get_platforms_api_platforms_get")
+    def test_get_platforms_network_error(self, mock_get):
+        mock_get.sync_detailed.side_effect = ConnectionError("timeout")
+        client = self._auth_client()
+        with pytest.raises(PlatformError, match="timeout"):
+            client.get_platforms()
+
+    def test_get_platforms_unauthenticated(self):
+        client = RommClient("https://romm.example.com")
+        with pytest.raises(RommClientError, match="Not authenticated"):
+            client.get_platforms()
+
+
 # ===================================================================
 # Integration tests – run against a live server
 # ===================================================================
@@ -460,3 +564,13 @@ class TestIntegration:
             assert path.exists()
             assert path.stat().st_size > 0
             print(f"  Downloaded {path.name} ({path.stat().st_size} bytes)")
+
+    @integration
+    def test_get_platforms(self):
+        client = RommClient(ROMM_TEST_URL, verify_ssl=True)
+        client.login(ROMM_TEST_USER, ROMM_TEST_PASS)
+        platforms = client.get_platforms()
+        assert isinstance(platforms, list)
+        for p in platforms:
+            assert isinstance(p, PlatformResult)
+            print(f"  [{p.id}] {p.display_name} ({p.slug}) – {p.rom_count} roms")

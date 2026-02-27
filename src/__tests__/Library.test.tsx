@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { toaster } from "@decky/api";
+import { toaster, openFilePicker } from "@decky/api";
 import { callableMocks, resetCallableMocks } from "./decky-api-helpers";
 import { LibraryPage, RomCard, type RomSearchResult } from "../Library";
 
@@ -37,6 +37,10 @@ describe("LibraryPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetCallableMocks();
+
+    callableMocks["settings_getSetting"].mockResolvedValue({});
+    callableMocks["settings_setSetting"].mockResolvedValue(undefined);
+    callableMocks["settings_commit"].mockResolvedValue(undefined);
   });
 
   it("renders the search field and button", () => {
@@ -192,6 +196,94 @@ describe("LibraryPage", () => {
       expect(screen.getByText("Results (3)")).toBeInTheDocument();
     });
   });
+
+  it("handles download when platform path is already set", async () => {
+    callableMocks["search_roms"].mockResolvedValue([makeRom()]);
+    callableMocks["settings_getSetting"].mockResolvedValue({ nes: "/roms/nes" });
+
+    const user = userEvent.setup();
+    render(<LibraryPage />);
+
+    await user.type(screen.getByLabelText("Search ROMs"), "mario");
+    await user.click(screen.getByText("Search"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rom-card")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("rom-card"));
+
+    await waitFor(() => {
+      expect(toaster.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Ready to download", body: "Will download to: /roms/nes" })
+      );
+    });
+    // Shouldn't prompt for file picker
+    expect(openFilePicker).not.toHaveBeenCalled();
+  });
+
+  it("prompts for path when platform path is missing and saves it", async () => {
+    callableMocks["search_roms"].mockResolvedValue([makeRom()]);
+    callableMocks["settings_getSetting"].mockResolvedValue({}); // No paths
+    
+    // Type casting mock to interact with it
+    const mockFilePicker = openFilePicker as ReturnType<typeof vi.fn>;
+    mockFilePicker.mockResolvedValue({ path: "/new/nes/path", realpath: "/new/nes/path" });
+
+    const user = userEvent.setup();
+    render(<LibraryPage />);
+
+    await user.type(screen.getByLabelText("Search ROMs"), "mario");
+    await user.click(screen.getByText("Search"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rom-card")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("rom-card"));
+
+    await waitFor(() => {
+      expect(toaster.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Setup Required" })
+      );
+      expect(mockFilePicker).toHaveBeenCalledWith(1, "/home", false, true);
+      expect(callableMocks["settings_setSetting"]).toHaveBeenCalledWith("platformPaths", { nes: "/new/nes/path" });
+      expect(callableMocks["settings_commit"]).toHaveBeenCalled();
+      expect(toaster.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Ready to download", body: "Will download to: /new/nes/path" })
+      );
+    });
+  });
+
+  it("does not start download if file picker is cancelled", async () => {
+    callableMocks["search_roms"].mockResolvedValue([makeRom()]);
+    callableMocks["settings_getSetting"].mockResolvedValue({});
+    
+    const mockFilePicker = openFilePicker as ReturnType<typeof vi.fn>;
+    mockFilePicker.mockResolvedValue(null); // User cancelled
+
+    const user = userEvent.setup();
+    render(<LibraryPage />);
+
+    await user.type(screen.getByLabelText("Search ROMs"), "mario");
+    await user.click(screen.getByText("Search"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rom-card")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("rom-card"));
+
+    await waitFor(() => {
+      expect(mockFilePicker).toHaveBeenCalled();
+    });
+    
+    // Since it was cancelled, it shouldn't proceed to save or show ready
+    expect(callableMocks["settings_setSetting"]).not.toHaveBeenCalled();
+    expect(toaster.toast).not.toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Ready to download" })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -201,7 +293,7 @@ describe("LibraryPage", () => {
 describe("RomCard", () => {
   it("renders name and platform", () => {
     const rom = makeRom({ name: "Tetris", platform_name: "Game Boy" });
-    render(<RomCard rom={rom} />);
+    render(<RomCard rom={rom} onSelect={vi.fn()} />);
 
     expect(screen.getByText("Tetris")).toBeInTheDocument();
     expect(screen.getByText("Game Boy")).toBeInTheDocument();
@@ -209,14 +301,14 @@ describe("RomCard", () => {
 
   it("falls back to file_name when name is null", () => {
     const rom = makeRom({ name: null, file_name: "tetris.gb" });
-    render(<RomCard rom={rom} />);
+    render(<RomCard rom={rom} onSelect={vi.fn()} />);
 
     expect(screen.getByText("tetris.gb")).toBeInTheDocument();
   });
 
   it("renders the cover image with correct src", () => {
     const rom = makeRom({ url_cover: "https://example.com/cover.png" });
-    render(<RomCard rom={rom} />);
+    render(<RomCard rom={rom} onSelect={vi.fn()} />);
 
     const img = screen.getByRole("img") as HTMLImageElement;
     expect(img.src).toBe("https://example.com/cover.png");
@@ -224,9 +316,19 @@ describe("RomCard", () => {
 
   it("uses placeholder when url_cover is null", () => {
     const rom = makeRom({ url_cover: null });
-    render(<RomCard rom={rom} />);
+    render(<RomCard rom={rom} onSelect={vi.fn()} />);
 
     const img = screen.getByRole("img") as HTMLImageElement;
     expect(img.src).toContain("data:image/svg+xml");
+  });
+
+  it("calls onSelect when clicked", async () => {
+    const rom = makeRom();
+    const handleSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<RomCard rom={rom} onSelect={handleSelect} />);
+
+    await user.click(screen.getByTestId("rom-card"));
+    expect(handleSelect).toHaveBeenCalledWith(rom);
   });
 });

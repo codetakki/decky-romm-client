@@ -12,6 +12,7 @@ import httpx
 
 from rom_m_api_client import AuthenticatedClient, Client
 from rom_m_api_client.api.auth import token_api_token_post
+from rom_m_api_client.api.platforms import get_platforms_api_platforms_get
 from rom_m_api_client.api.roms import (
     download_roms_api_roms_download_get,
     get_rom_api_roms_id_get,
@@ -42,6 +43,47 @@ class SearchError(RommClientError):
 
 class DownloadError(RommClientError):
     """Raised when a ROM download fails."""
+
+
+class PlatformError(RommClientError):
+    """Raised when a platform request fails."""
+
+
+@dataclass
+class PlatformResult:
+    """Lightweight representation of a platform from RomM."""
+
+    id: int
+    name: str
+    slug: str
+    fs_slug: str
+    display_name: str
+    rom_count: int
+    url_logo: str | None
+
+    @classmethod
+    def from_schema(cls, p) -> PlatformResult:
+        return cls(
+            id=p.id,
+            name=p.name,
+            slug=p.slug,
+            fs_slug=p.fs_slug,
+            display_name=p.display_name,
+            rom_count=p.rom_count,
+            url_logo=getattr(p, 'url_logo', None),
+        )
+
+    def to_dict(self) -> dict:
+        """Return a plain dict suitable for JSON serialisation to the frontend."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "slug": self.slug,
+            "fs_slug": self.fs_slug,
+            "display_name": self.display_name,
+            "rom_count": self.rom_count,
+            "url_logo": self.url_logo,
+        }
 
 
 @dataclass
@@ -239,6 +281,34 @@ class RommClient:
         if self._client is None:
             raise RommClientError("Not authenticated – call login() or set_token() first.")
         return self._client
+
+    # ------------------------------------------------------------------
+    # Platforms
+    # ------------------------------------------------------------------
+
+    def get_platforms(self) -> list[PlatformResult]:
+        """Fetch all platforms registered on the RomM server.
+
+        Returns:
+            A list of :class:`PlatformResult` objects.
+
+        Raises:
+            PlatformError: If the request fails or returns an unexpected response.
+        """
+        client = self._require_auth()
+
+        try:
+            response = get_platforms_api_platforms_get.sync_detailed(client=client)
+        except Exception as exc:
+            raise PlatformError(f"Get platforms request failed: {exc}") from exc
+
+        if response.status_code.value != 200 or not isinstance(response.parsed, list):
+            raise PlatformError(
+                f"Get platforms failed (HTTP {response.status_code.value}): "
+                f"{response.content.decode(errors='ignore')}"
+            )
+
+        return [PlatformResult.from_schema(p) for p in response.parsed]
 
     # ------------------------------------------------------------------
     # Searching / listing ROMs

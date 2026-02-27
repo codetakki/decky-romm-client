@@ -68,6 +68,27 @@ class Plugin:
             items.append(d)
         return items
 
+    async def get_platforms(self):
+        """Fetch all platforms from RomM. Logs in automatically if needed.
+        
+        Returns a list of dicts with keys: id, name, slug, fs_slug,
+        display_name, rom_count, url_logo.
+        """
+        global _romm_client
+        if _romm_client is None or not _romm_client.is_authenticated:
+            await self.romm_login()
+
+        base_url = settings.getSetting("rommUrl", "").rstrip("/")
+        platforms = _romm_client.get_platforms()
+
+        items = []
+        for p in platforms:
+            d = p.to_dict()
+            if d.get("url_logo") and not d["url_logo"].startswith("http"):
+                d["url_logo"] = base_url + "/" + d["url_logo"].lstrip("/")
+            items.append(d)
+        return items
+
     # Asyncio-compatible long-running code, executed in a task when the plugin is loaded
     async def _main(self):
         decky.logger.info("RomM Client plugin loaded")

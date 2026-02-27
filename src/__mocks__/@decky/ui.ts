@@ -105,7 +105,30 @@ TextField.displayName = "TextField";
 
 export const Dropdown = wrap("Dropdown");
 export const SliderField = wrap("SliderField");
-export const ToggleField = wrap("ToggleField");
+
+export const ToggleField: FC<{
+  label?: string;
+  checked?: boolean;
+  onChange?: (checked: boolean) => void;
+}> = ({ label, checked, onChange }) =>
+  React.createElement(
+    "div",
+    { "data-testid": "ToggleField" },
+    React.createElement(
+      "label",
+      null,
+      label,
+      React.createElement("input", {
+        type: "checkbox",
+        checked,
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+          onChange && onChange(e.target.checked),
+        "aria-label": label,
+      }),
+    ),
+  );
+ToggleField.displayName = "ToggleField";
+
 export const Toggle = wrap("Toggle");
 export const Focusable = wrap("Focusable");
 export const Carousel = wrap("Carousel");
@@ -114,7 +137,21 @@ export const SteamSpinner = wrap("SteamSpinner");
 export const ProgressBar = wrap("ProgressBar");
 export const Tabs = wrap("Tabs");
 export const DialogButton = wrap("DialogButton", "button");
-export const Field = wrap("Field");
+export const Field: FC<{
+  label?: string;
+  description?: ReactNode;
+  children?: ReactNode;
+}> = ({ label, description, children }) =>
+  React.createElement(
+    "div",
+    { "data-testid": "Field" },
+    label ? React.createElement("span", { "data-testid": "Field-label" }, label) : null,
+    description != null
+      ? React.createElement("span", { "data-testid": "Field-description" }, description)
+      : null,
+    children,
+  );
+Field.displayName = "Field";
 export const FocusRing = wrap("FocusRing");
 export const Marquee = wrap("Marquee");
 export const SidebarNavigation = wrap("SidebarNavigation");

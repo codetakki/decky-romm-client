@@ -6,14 +6,13 @@ import {
   staticClasses
 } from "@decky/ui";
 import {
-  callable,
   definePlugin,
-  toaster,
   routerHook,
 } from "@decky/api"
 import { FaShip } from "react-icons/fa";
 import { SettingsPage, SETTINGS_ROUTE } from "./Settings";
 import { LibraryPage, LIBRARY_ROUTE } from "./Library";
+import { PlatformPathsPage, PLATFORM_PATHS_ROUTE } from "./PlatformPaths";
 
 function Content() {
   return (
@@ -28,6 +27,17 @@ function Content() {
             }}
           >
             ROM Library
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={() => {
+              Navigation.Navigate(PLATFORM_PATHS_ROUTE);
+              Navigation.CloseSideMenus();
+            }}
+          >
+            Platform Paths
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
@@ -51,6 +61,7 @@ export default definePlugin(() => {
 
   routerHook.addRoute(SETTINGS_ROUTE, SettingsPage, { exact: true });
   routerHook.addRoute(LIBRARY_ROUTE, LibraryPage, { exact: true });
+  routerHook.addRoute(PLATFORM_PATHS_ROUTE, PlatformPathsPage, { exact: true });
 
   return {
     name: "RomM Client",
@@ -63,6 +74,7 @@ export default definePlugin(() => {
     onDismount() {
       routerHook.removeRoute(SETTINGS_ROUTE);
       routerHook.removeRoute(LIBRARY_ROUTE);
+      routerHook.removeRoute(PLATFORM_PATHS_ROUTE);
     },
   };
 });
