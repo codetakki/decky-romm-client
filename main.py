@@ -9,23 +9,9 @@ import asyncio
 from settings import SettingsManager
 from decky import logger
 
-# Make the rom-m-api-client package importable
-PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
-ROM_CLIENT_DIR = os.path.join(PLUGIN_DIR, "rom-m-api-client")
-if ROM_CLIENT_DIR not in sys.path:
-    sys.path.insert(0, ROM_CLIENT_DIR)
+# py_modules/ is automatically on sys.path when loaded by Decky Loader
+from romm_client import RommClient
 
-import importlib.util
-_spec = importlib.util.spec_from_file_location(
-    "romm_client", os.path.join(ROM_CLIENT_DIR, "romm-client.py")
-)
-_romm_mod = importlib.util.module_from_spec(_spec)
-sys.modules["romm_client"] = _romm_mod
-_spec.loader.exec_module(_romm_mod)
-
-RommClient = _romm_mod.RommClient
-
-import os
 settings = SettingsManager(name="settings-romm-client")
 settings.read()
 

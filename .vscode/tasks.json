@@ -146,6 +146,36 @@
             "command": "ssh ${config:deckuser}@${config:deckip} -p ${config:deckport} ${config:deckkey} 'echo '${config:deckpass}' | sudo -S systemctl restart plugin_loader'",
             "problemMatcher": []
         },
+        //LOCAL DEPLOY TASKS (WSL2 / desktop — no SSH needed)
+        {
+            "label": "deploy:local",
+            "detail": "Deploy built plugin to local ~/homebrew/plugins/",
+            "type": "shell",
+            "group": "none",
+            "command": "bash ${workspaceFolder}/scripts/deploy-local.sh",
+            "problemMatcher": []
+        },
+        {
+            "label": "builddeploy:local",
+            "detail": "Build plugin and deploy locally",
+            "dependsOrder": "sequence",
+            "group": "none",
+            "dependsOn": [
+                "build",
+                "deploy:local"
+            ],
+            "problemMatcher": []
+        },
+        //STEAM TASKS
+        {
+            "label": "steam:bigpicture",
+            "detail": "Launch Steam in Big Picture mode",
+            "type": "shell",
+            "group": "none",
+            "command": "steam -bigpicture &",
+            "isBackground": true,
+            "problemMatcher": []
+        },
         //TEST TASKS
         //Run frontend (Vitest) unit tests
         {
