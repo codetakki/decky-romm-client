@@ -60,7 +60,16 @@
             //     "command": "call ${workspaceFolder}\\.vscode\\build.bat",
             // },
             "problemMatcher": []
-        }, 
+        },
+        //Install Python dependencies into py_modules/
+        {
+            "label": "install-py-deps",
+            "type": "shell",
+            "group": "build",
+            "detail": "Install Python deps into py_modules/ for bundling",
+            "command": "bash ${workspaceFolder}/scripts/install-py-deps.sh",
+            "problemMatcher": []
+        },
         //"All-in-one" build task
         {
             "label": "build",
@@ -70,6 +79,7 @@
             "dependsOn": [
                 "setup",
                 "settingscheck",
+                "install-py-deps",
                 "cli-build",
             ],
             "problemMatcher": []
