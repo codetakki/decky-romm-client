@@ -1,8 +1,11 @@
 import {
   ButtonItem,
+  Focusable,
+  Navigation,
   PanelSection,
   PanelSectionRow,
   Field,
+  ScrollPanelGroup,
   TextField,
   ToggleField,
 } from "@decky/ui";
@@ -119,108 +122,115 @@ export const PlatformPathsPage: FC = () => {
   });
 
   return (
-    <div
+    <Focusable
+      onCancelButton={() => Navigation.NavigateBack()}
+      onCancelActionDescription="Back"
       style={{
         marginTop: "40px",
         height: "calc(100% - 40px)",
         overflow: "auto",
       }}
     >
-      {loading ? (
-        <PanelSection title="Loading...">
-          <PanelSectionRow>Loading platforms from RomM...</PanelSectionRow>
-        </PanelSection>
-      ) : error ? (
-        <PanelSection title="Error">
-          <PanelSectionRow>
-            {error}
-          </PanelSectionRow>
-          <PanelSectionRow>
-            <ButtonItem layout="below" onClick={() => window.location.reload()}>
-              Retry
-            </ButtonItem>
-          </PanelSectionRow>
-        </PanelSection>
-      ) : platforms.length === 0 ? (
-        <PanelSection title="No Platforms">
-          <PanelSectionRow>
-            No platforms found on your RomM server. Add some ROMs first.
-          </PanelSectionRow>
-        </PanelSection>
-      ) : (
-        <>
-          <PanelSection title="Platform Download Paths">
-            <PanelSectionRow>
-              <span style={{ fontSize: "12px", opacity: 0.7 }}>
-                Choose where ROMs for each platform should be saved after downloading.
-              </span>
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <TextField
-                label="Search Platforms"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </PanelSectionRow>
-            <PanelSectionRow>
-              <ToggleField
-                label="Hide platforms with no games"
-                checked={hideEmpty}
-                onChange={(enabled) => setHideEmpty(enabled)}
-              />
-            </PanelSectionRow>
+      <ScrollPanelGroup>
+        {loading ? (
+          <PanelSection title="Loading...">
+            <PanelSectionRow>Loading platforms from RomM...</PanelSectionRow>
           </PanelSection>
-
-          {filteredPlatforms.map((platform) => (
-            <PanelSection
-              key={platform.slug}
-              title={`${platform.display_name} (${platform.rom_count})`}
-            >
-              <PanelSectionRow>
-                <Field
-                  label="Download path"
-                  description={pathMap[platform.slug] || "Not configured"}
-                >
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <ButtonItem
-                      layout="below"
-                      onClick={() =>
-                        browsePath(platform.slug, pathMap[platform.slug] || "")
-                      }
-                    >
-                      Browse
-                    </ButtonItem>
-                    {pathMap[platform.slug] && (
-                      <ButtonItem
-                        layout="below"
-                        onClick={() => onClear(platform.slug)}
-                      >
-                        Clear
-                      </ButtonItem>
-                    )}
-                  </div>
-                </Field>
-              </PanelSectionRow>
-            </PanelSection>
-          ))}
-
-          {filteredPlatforms.length === 0 && (
-            <PanelSection>
-              <PanelSectionRow>
-                No platforms match your search or filter criteria.
-              </PanelSectionRow>
-            </PanelSection>
-          )}
-
-          <PanelSection>
+        ) : error ? (
+          <PanelSection title="Error">
             <PanelSectionRow>
-              <ButtonItem layout="below" onClick={onSave}>
-                Save All Paths
+              {error}
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <ButtonItem layout="below" onClick={() => window.location.reload()}>
+                Retry
               </ButtonItem>
             </PanelSectionRow>
           </PanelSection>
-        </>
-      )}
-    </div>
+        ) : platforms.length === 0 ? (
+          <PanelSection title="No Platforms">
+            <PanelSectionRow>
+              No platforms found on your RomM server. Add some ROMs first.
+            </PanelSectionRow>
+          </PanelSection>
+        ) : (
+          <>
+            <PanelSection title="Platform Download Paths">
+              <PanelSectionRow>
+                <span style={{ fontSize: "12px", opacity: 0.7 }}>
+                  Choose where ROMs for each platform should be saved after downloading.
+                </span>
+              </PanelSectionRow>
+              <PanelSectionRow>
+                <TextField
+                  label="Search Platforms"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </PanelSectionRow>
+              <PanelSectionRow>
+                <ToggleField
+                  label="Hide platforms with no games"
+                  checked={hideEmpty}
+                  onChange={(enabled) => setHideEmpty(enabled)}
+                />
+              </PanelSectionRow>
+            </PanelSection>
+
+            {filteredPlatforms.map((platform) => (
+              <PanelSection
+                key={platform.slug}
+                title={`${platform.display_name} (${platform.rom_count})`}
+              >
+                <PanelSectionRow>
+                  <Field
+                    label="Download path"
+                    description={pathMap[platform.slug] || "Not configured"}
+                  >
+                    <Focusable
+                      style={{ display: "flex", gap: "8px" }}
+                      flow-children="row"
+                    >
+                      <ButtonItem
+                        layout="below"
+                        onClick={() =>
+                          browsePath(platform.slug, pathMap[platform.slug] || "")
+                        }
+                      >
+                        Browse
+                      </ButtonItem>
+                      {pathMap[platform.slug] && (
+                        <ButtonItem
+                          layout="below"
+                          onClick={() => onClear(platform.slug)}
+                        >
+                          Clear
+                        </ButtonItem>
+                      )}
+                    </Focusable>
+                  </Field>
+                </PanelSectionRow>
+              </PanelSection>
+            ))}
+
+            {filteredPlatforms.length === 0 && (
+              <PanelSection>
+                <PanelSectionRow>
+                  No platforms match your search or filter criteria.
+                </PanelSectionRow>
+              </PanelSection>
+            )}
+
+            <PanelSection>
+              <PanelSectionRow>
+                <ButtonItem layout="below" onClick={onSave}>
+                  Save All Paths
+                </ButtonItem>
+              </PanelSectionRow>
+            </PanelSection>
+          </>
+        )}
+      </ScrollPanelGroup>
+    </Focusable>
   );
 };

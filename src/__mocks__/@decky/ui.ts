@@ -130,7 +130,30 @@ export const ToggleField: FC<{
 ToggleField.displayName = "ToggleField";
 
 export const Toggle = wrap("Toggle");
-export const Focusable = wrap("Focusable");
+
+/**
+ * Focusable mock – passes through onClick, onActivate, and data-testid
+ * so tests can trigger gamepad-style activation as well as clicks.
+ */
+export const Focusable: FC<Record<string, unknown> & { children?: ReactNode }> = ({
+  children,
+  onActivate,
+  onCancelButton,
+  onOKActionDescription,
+  onCancelActionDescription,
+  "flow-children": _flowChildren,
+  focusClassName: _fc,
+  focusWithinClassName: _fwc,
+  noFocusRing: _nfr,
+  ...rest
+}) =>
+  React.createElement(
+    "div",
+    { "data-testid": rest["data-testid"] ?? "Focusable", ...rest },
+    children,
+  );
+Focusable.displayName = "Focusable";
+
 export const Carousel = wrap("Carousel");
 export const Spinner = wrap("Spinner");
 export const SteamSpinner = wrap("SteamSpinner");
@@ -155,6 +178,8 @@ Field.displayName = "Field";
 export const FocusRing = wrap("FocusRing");
 export const Marquee = wrap("Marquee");
 export const SidebarNavigation = wrap("SidebarNavigation");
+export const ScrollPanel = wrap("ScrollPanel");
+export const ScrollPanelGroup = wrap("ScrollPanelGroup");
 
 /* -------------------------------------------------------------------------- */
 /*  Navigation / Router                                                       */

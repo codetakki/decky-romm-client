@@ -1,8 +1,10 @@
 import {
   ButtonItem,
   Focusable,
+  Navigation,
   PanelSection,
   PanelSectionRow,
+  ScrollPanelGroup,
   TextField,
 } from "@decky/ui";
 import { callable, openFilePicker, toaster } from "@decky/api";
@@ -139,57 +141,62 @@ export const LibraryPage: FC = () => {
   };
 
   return (
-    <div
+    <Focusable
+      onCancelButton={() => Navigation.NavigateBack()}
+      onCancelActionDescription="Back"
       style={{
         marginTop: "40px",
         height: "calc(100% - 40px)",
         overflow: "auto",
       }}
     >
-      <PanelSection title="ROM Library">
-        <PanelSectionRow>
-          <TextField
-            label="Search ROMs"
-            description="Search by title"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </PanelSectionRow>
-        <PanelSectionRow>
-          <ButtonItem layout="below" onClick={onSearch} disabled={searching || !query.trim()}>
-            {searching ? "Searching..." : "Search"}
-          </ButtonItem>
-        </PanelSectionRow>
-      </PanelSection>
-
-      {searched && results.length === 0 && (
-        <PanelSection title="No Results">
-          <PanelSectionRow>No ROMs found for &quot;{query}&quot;.</PanelSectionRow>
+      <ScrollPanelGroup>
+        <PanelSection title="ROM Library">
+          <PanelSectionRow>
+            <TextField
+              label="Search ROMs"
+              description="Search by title"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <ButtonItem layout="below" onClick={onSearch} disabled={searching || !query.trim()}>
+              {searching ? "Searching..." : "Search"}
+            </ButtonItem>
+          </PanelSectionRow>
         </PanelSection>
-      )}
 
-      {results.length > 0 && (
-        <PanelSection title={`Results (${results.length})`}>
-          <Focusable
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-              gap: "12px",
-              padding: "8px 0",
-            }}
-          >
-            {results.map((rom) => (
-              <RomCard
-                key={rom.id}
-                rom={rom}
-                onSelect={handleSelectRom}
-                downloading={downloadingIds.has(rom.id)}
-              />
-            ))}
-          </Focusable>
-        </PanelSection>
-      )}
-    </div>
+        {searched && results.length === 0 && (
+          <PanelSection title="No Results">
+            <PanelSectionRow>No ROMs found for &quot;{query}&quot;.</PanelSectionRow>
+          </PanelSection>
+        )}
+
+        {results.length > 0 && (
+          <PanelSection title={`Results (${results.length})`}>
+            <Focusable
+              flow-children="grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                gap: "12px",
+                padding: "8px 0",
+              }}
+            >
+              {results.map((rom) => (
+                <RomCard
+                  key={rom.id}
+                  rom={rom}
+                  onSelect={handleSelectRom}
+                  downloading={downloadingIds.has(rom.id)}
+                />
+              ))}
+            </Focusable>
+          </PanelSection>
+        )}
+      </ScrollPanelGroup>
+    </Focusable>
   );
 };
 
@@ -210,7 +217,9 @@ export const RomCard: FC<{
   return (
     <Focusable
       data-testid="rom-card"
+      onActivate={() => !downloading && onSelect(rom)}
       onClick={() => !downloading && onSelect(rom)}
+      onOKActionDescription={downloading ? "Downloading…" : "Download"}
       style={{
         display: "flex",
         flexDirection: "column",
