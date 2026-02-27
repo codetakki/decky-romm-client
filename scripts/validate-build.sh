@@ -123,6 +123,36 @@ else
 fi
 
 # ---------------------------------------------------------------
+# 7. Verify package.json has no template defaults
+# ---------------------------------------------------------------
+PKG_NAME="$(python3 -c "
+import zipfile, json
+z = zipfile.ZipFile('${ZIP_FILE}')
+pkg = json.loads(z.read('${PLUGIN_JSON_NAME}/package.json'))
+print(pkg.get('name', ''))
+")"
+
+if [ "$PKG_NAME" = "decky-plugin-template" ]; then
+    echo "FAIL package.json still has template name 'decky-plugin-template'"
+    ERRORS=$((ERRORS + 1))
+elif [ -z "$PKG_NAME" ]; then
+    echo "FAIL package.json has no name field"
+    ERRORS=$((ERRORS + 1))
+else
+    echo "OK   package.json name: '${PKG_NAME}'"
+fi
+
+# ---------------------------------------------------------------
+# 8. No dummy template backend binary (bin/hello)
+# ---------------------------------------------------------------
+if echo "$ZIP_LISTING" | grep -q "${PLUGIN_JSON_NAME}/bin/hello"; then
+    echo "FAIL Template backend binary 'bin/hello' found in zip — remove backend/ directory"
+    ERRORS=$((ERRORS + 1))
+else
+    echo "OK   No template backend binary"
+fi
+
+# ---------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------
 echo ""
