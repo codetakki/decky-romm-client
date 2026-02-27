@@ -5,8 +5,11 @@ import {
   PanelSectionRow,
   TextField,
 } from "@decky/ui";
-import { callable, toaster } from "@decky/api";
+import { callable, openFilePicker, toaster } from "@decky/api";
 import { FC, useCallback, useState } from "react";
+
+// FileSelectionType enum values from @decky/api
+const FileSelectionType = { FILE: 0, FOLDER: 1 } as const;
 
 /** Shape returned by the Python `search_roms` backend method. */
 export interface RomSearchResult {
@@ -24,6 +27,13 @@ export interface RomSearchResult {
 const searchRoms = callable<[search_term: string, limit: number], RomSearchResult[]>(
   "search_roms",
 );
+const getSetting = callable<[key: string, defaults: unknown], unknown>(
+  "settings_getSetting",
+);
+const setSetting = callable<[key: string, value: unknown], void>(
+  "settings_setSetting",
+);
+const commitSettings = callable<[], void>("settings_commit");
 
 export const LIBRARY_ROUTE = "/decky-romm-client-library";
 
@@ -52,6 +62,51 @@ export const LibraryPage: FC = () => {
       setSearched(true);
     }
   }, [query]);
+
+  const handleSelectRom = async (rom: RomSearchResult) => {
+    try {
+      let paths = (await getSetting("platformPaths", {})) as Record<string, string>;
+      let path = paths[rom.platform_slug];
+
+      if (!path) {
+        toaster.toast({
+          title: "Setup Required",
+          body: `Please select a download folder for ${rom.platform_name}.`,
+        });
+
+        const result = await openFilePicker(
+          FileSelectionType.FOLDER,
+          "/home",
+          false,
+          true
+        );
+
+        if (result?.path) {
+          path = result.path;
+          paths = { ...paths, [rom.platform_slug]: path };
+          await setSetting("platformPaths", paths);
+          await commitSettings();
+          toaster.toast({
+            title: "Path Saved",
+            body: `Folder set for ${rom.platform_name}`,
+          });
+        } else {
+          return; // user cancelled file picker
+        }
+      }
+
+      toaster.toast({
+        title: "Ready to download",
+        body: `Will download to: ${path}`, // Placeholder until actual download is implemented
+      });
+    } catch (e) {
+      console.error("Error setting download path:", e);
+      toaster.toast({
+        title: "Error",
+        body: "Failed to configure download path.",
+      });
+    }
+  };
 
   return (
     <div
@@ -94,7 +149,7 @@ export const LibraryPage: FC = () => {
             }}
           >
             {results.map((rom) => (
-              <RomCard key={rom.id} rom={rom} />
+              <RomCard key={rom.id} rom={rom} onSelect={handleSelectRom} />
             ))}
           </Focusable>
         </PanelSection>
@@ -110,18 +165,21 @@ export const LibraryPage: FC = () => {
 const PLACEHOLDER_COVER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='160' fill='%23333'%3E%3Crect width='120' height='160'/%3E%3Ctext x='50%25' y='50%25' fill='%23888' font-size='12' text-anchor='middle' dy='.3em'%3ENo Cover%3C/text%3E%3C/svg%3E";
 
-export const RomCard: FC<{ rom: RomSearchResult }> = ({ rom }) => {
+export const RomCard: FC<{ rom: RomSearchResult; onSelect: (rom: RomSearchResult) => void }> = ({ rom, onSelect }) => {
   const coverUrl = rom.url_cover ?? PLACEHOLDER_COVER;
 
   return (
-    <div
+    <Focusable
       data-testid="rom-card"
+      onClick={() => onSelect(rom)}
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         textAlign: "center",
         cursor: "pointer",
+        padding: "8px",
+        borderRadius: "4px",
       }}
     >
       <img
@@ -152,6 +210,6 @@ export const RomCard: FC<{ rom: RomSearchResult }> = ({ rom }) => {
       <span style={{ fontSize: "10px", color: "#aaa" }}>
         {rom.platform_name}
       </span>
-    </div>
+    </Focusable>
   );
 };
