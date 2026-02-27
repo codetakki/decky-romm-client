@@ -6,6 +6,10 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+import base64
+
+import httpx
+
 from rom_m_api_client import AuthenticatedClient, Client
 from rom_m_api_client.api.auth import token_api_token_post
 from rom_m_api_client.api.roms import (
@@ -83,8 +87,62 @@ class RommClient:
     # Authentication
     # ------------------------------------------------------------------
 
-    def login(self, username: str, password: str) -> TokenResponse:
-        """Authenticate with the RomM server and store the token for subsequent requests.
+    def login(self, username: str, password: str) -> None:
+        """Authenticate with the RomM server using session-based auth.
+
+        Calls ``POST /api/login`` with HTTP Basic credentials. The server
+        responds with a ``romm_session`` cookie which is stored and sent
+        with every subsequent request.
+
+        Args:
+            username: RomM account username.
+            password: RomM account password.
+
+        Raises:
+            LoginError: If the server rejects the credentials or returns an error.
+        """
+        try:
+            creds = base64.b64encode(f"{username}:{password}".encode()).decode()
+            transport_client = httpx.Client(
+                base_url=self._base_url,
+                verify=self._verify_ssl,
+            )
+            response = transport_client.post(
+                "/api/login",
+                headers={"Authorization": f"Basic {creds}"},
+            )
+        except Exception as exc:
+            raise LoginError(f"Login request failed: {exc}") from exc
+
+        if response.status_code != 200:
+            raise LoginError(
+                f"Login failed (HTTP {response.status_code}): "
+                f"{response.content.decode(errors='ignore')}"
+            )
+
+        # Extract session cookies set by the server
+        cookies = dict(transport_client.cookies)
+        if not cookies:
+            raise LoginError("Login succeeded but no session cookies were returned.")
+
+        # Build a Client that carries the session cookies for all future calls.
+        # We use a dummy token with AuthenticatedClient; the real auth is the
+        # session cookie, but AuthenticatedClient requires a token value.
+        self._client = AuthenticatedClient(
+            base_url=self._base_url,
+            token="session",
+            prefix="",
+            verify_ssl=self._verify_ssl,
+            cookies=cookies,
+        )
+
+    def login_with_token(self, username: str, password: str) -> TokenResponse:
+        """Authenticate via the OAuth2 token endpoint (``POST /api/token``).
+
+        .. note::
+
+            Most RomM deployments use session-based auth. Prefer :meth:`login`
+            unless you specifically need a Bearer token.
 
         Args:
             username: RomM account username.
@@ -139,6 +197,20 @@ class RommClient:
             base_url=self._base_url,
             token=token,
             verify_ssl=self._verify_ssl,
+        )
+
+    def set_session_cookies(self, cookies: dict[str, str]) -> None:
+        """Manually set session cookies (e.g. a previously saved ``romm_session``).
+
+        Args:
+            cookies: Dictionary of cookie name/value pairs.
+        """
+        self._client = AuthenticatedClient(
+            base_url=self._base_url,
+            token="session",
+            prefix="",
+            verify_ssl=self._verify_ssl,
+            cookies=cookies,
         )
 
     @property
@@ -275,25 +347,26 @@ class RommClient:
             out_name = f"rom_{rom_id}"
 
         try:
-            response = get_rom_content_api_roms_id_content_file_name_get.sync_detailed(
-                rom_id,
-                out_name,
-                client=client,
-            )
+            # Make the request directly via httpx to avoid the SDK's
+            # _parse_response which tries response.json() on binary content.
+            from urllib.parse import quote
+            url = f"/api/roms/{quote(str(rom_id), safe='')}/content/{quote(out_name, safe='')}"
+            httpx_client = client.get_httpx_client()
+            raw_response = httpx_client.request("GET", url)
         except Exception as exc:
             raise DownloadError(f"Download request failed: {exc}") from exc
 
-        if response.status_code.value != 200:
+        if raw_response.status_code != 200:
             raise DownloadError(
-                f"Download failed (HTTP {response.status_code.value}): "
-                f"{response.content.decode(errors='ignore')}"
+                f"Download failed (HTTP {raw_response.status_code}): "
+                f"{raw_response.content.decode(errors='ignore')}"
             )
 
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         dest = output_path / out_name
 
-        dest.write_bytes(response.content)
+        dest.write_bytes(raw_response.content)
         return dest
 
     def download_roms_zip(

@@ -132,37 +132,63 @@ class TestAuthentication:
         with pytest.raises(RommClientError, match="Not authenticated"):
             client._require_auth()
 
-    @patch("rom_m_api_client.api.auth.token_api_token_post.sync_detailed")
-    def test_login_success(self, mock_token):
-        token_resp = _fake_token_response()
-        mock_token.return_value = _ok_response(token_resp)
+    @patch("httpx.Client")
+    def test_login_success(self, mock_httpx_cls):
+        mock_httpx = MagicMock()
+        mock_httpx_cls.return_value = mock_httpx
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_httpx.post.return_value = mock_response
+        mock_httpx.cookies = {"romm_session": "fake-session-id"}
 
         client = RommClient("https://example.com")
-        result = client.login("admin", "admin")
+        client.login("admin", "admin")
 
-        assert result.access_token == "test-access-token"
         assert client.is_authenticated is True
-        mock_token.assert_called_once()
+        mock_httpx.post.assert_called_once()
 
-    @patch("rom_m_api_client.api.auth.token_api_token_post.sync_detailed")
-    def test_login_bad_credentials(self, mock_token):
-        mock_token.return_value = _error_response(401, b"Invalid credentials")
+    @patch("httpx.Client")
+    def test_login_bad_credentials(self, mock_httpx_cls):
+        mock_httpx = MagicMock()
+        mock_httpx_cls.return_value = mock_httpx
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_response.content = b"Invalid credentials"
+        mock_httpx.post.return_value = mock_response
 
         client = RommClient("https://example.com")
         with pytest.raises(LoginError, match="Login failed"):
             client.login("bad", "creds")
 
-    @patch("rom_m_api_client.api.auth.token_api_token_post.sync_detailed")
-    def test_login_network_error(self, mock_token):
-        mock_token.side_effect = ConnectionError("refused")
+    @patch("httpx.Client")
+    def test_login_network_error(self, mock_httpx_cls):
+        mock_httpx = MagicMock()
+        mock_httpx_cls.return_value = mock_httpx
+        mock_httpx.post.side_effect = ConnectionError("refused")
 
         client = RommClient("https://example.com")
         with pytest.raises(LoginError, match="Login request failed"):
             client.login("admin", "admin")
 
+    @patch("rom_m_api_client.api.auth.token_api_token_post.sync_detailed")
+    def test_login_with_token_success(self, mock_token):
+        token_resp = _fake_token_response()
+        mock_token.return_value = _ok_response(token_resp)
+
+        client = RommClient("https://example.com")
+        result = client.login_with_token("admin", "admin")
+
+        assert result.access_token == "test-access-token"
+        assert client.is_authenticated is True
+
     def test_set_token(self):
         client = RommClient("https://example.com")
         client.set_token("my-token")
+        assert client.is_authenticated is True
+
+    def test_set_session_cookies(self):
+        client = RommClient("https://example.com")
+        client.set_session_cookies({"romm_session": "abc123"})
         assert client.is_authenticated is True
 
 
@@ -245,16 +271,20 @@ class TestDownloadRom:
         c.set_token("tok")
         return c
 
-    @patch("rom_m_api_client.api.roms.get_rom_content_api_roms_id_content_file_name_get.sync_detailed")
     @patch("rom_m_api_client.api.roms.get_rom_api_roms_id_get.sync_detailed")
-    def test_download_rom_success(self, mock_get_rom, mock_content):
+    def test_download_rom_success(self, mock_get_rom):
         rom = _fake_detailed_rom(1, "TestRom")
         mock_get_rom.return_value = _ok_response(rom)
 
         file_bytes = b"\x00" * 256
-        mock_content.return_value = _ok_response(parsed=None, content=file_bytes)
+        mock_httpx_response = MagicMock()
+        mock_httpx_response.status_code = 200
+        mock_httpx_response.content = file_bytes
 
         client = self._authed_client()
+        mock_httpx_client = MagicMock()
+        mock_httpx_client.request.return_value = mock_httpx_response
+        client._client.set_httpx_client(mock_httpx_client)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = client.download_rom(1, tmpdir)
@@ -262,27 +292,38 @@ class TestDownloadRom:
             assert path.read_bytes() == file_bytes
             assert path.name == "TestRom.sfc"
 
-    @patch("rom_m_api_client.api.roms.get_rom_content_api_roms_id_content_file_name_get.sync_detailed")
     @patch("rom_m_api_client.api.roms.get_rom_api_roms_id_get.sync_detailed")
-    def test_download_rom_custom_filename(self, mock_get_rom, mock_content):
+    def test_download_rom_custom_filename(self, mock_get_rom):
         rom = _fake_detailed_rom(1, "TestRom")
         mock_get_rom.return_value = _ok_response(rom)
-        mock_content.return_value = _ok_response(parsed=None, content=b"data")
+
+        mock_httpx_response = MagicMock()
+        mock_httpx_response.status_code = 200
+        mock_httpx_response.content = b"data"
 
         client = self._authed_client()
+        mock_httpx_client = MagicMock()
+        mock_httpx_client.request.return_value = mock_httpx_response
+        client._client.set_httpx_client(mock_httpx_client)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = client.download_rom(1, tmpdir, file_name="custom.bin")
             assert path.name == "custom.bin"
 
-    @patch("rom_m_api_client.api.roms.get_rom_content_api_roms_id_content_file_name_get.sync_detailed")
     @patch("rom_m_api_client.api.roms.get_rom_api_roms_id_get.sync_detailed")
-    def test_download_rom_server_error(self, mock_get_rom, mock_content):
+    def test_download_rom_server_error(self, mock_get_rom):
         rom = _fake_detailed_rom(1, "TestRom")
         mock_get_rom.return_value = _ok_response(rom)
-        mock_content.return_value = _error_response(500, b"fail")
+
+        mock_httpx_response = MagicMock()
+        mock_httpx_response.status_code = 500
+        mock_httpx_response.content = b"fail"
 
         client = self._authed_client()
+        mock_httpx_client = MagicMock()
+        mock_httpx_client.request.return_value = mock_httpx_response
+        client._client.set_httpx_client(mock_httpx_client)
+
         with tempfile.TemporaryDirectory() as tmpdir:
             with pytest.raises(DownloadError, match="Download failed"):
                 client.download_rom(1, tmpdir)
@@ -349,8 +390,7 @@ class TestIntegration:
     @integration
     def test_login(self):
         client = RommClient(ROMM_TEST_URL, verify_ssl=True)
-        token = client.login(ROMM_TEST_USER, ROMM_TEST_PASS)
-        assert token.access_token
+        client.login(ROMM_TEST_USER, ROMM_TEST_PASS)
         assert client.is_authenticated
 
     @integration
