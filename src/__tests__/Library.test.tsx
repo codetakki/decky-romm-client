@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toaster, openFilePicker } from "@decky/api";
 import { callableMocks, resetCallableMocks } from "./decky-api-helpers";
-import { LibraryPage, RomCard, type RomSearchResult } from "../Library";
+import { LibraryPage, RomCard, type RomSearchResult, type DownloadResult } from "../Library";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,6 +41,11 @@ describe("LibraryPage", () => {
     callableMocks["settings_getSetting"].mockResolvedValue({});
     callableMocks["settings_setSetting"].mockResolvedValue(undefined);
     callableMocks["settings_commit"].mockResolvedValue(undefined);
+    callableMocks["download_rom"].mockResolvedValue({
+      status: "done",
+      path: "/roms/nes/super_mario_bros.nes",
+      extracted: null,
+    } satisfies DownloadResult);
   });
 
   it("renders the search field and button", () => {
@@ -200,6 +205,11 @@ describe("LibraryPage", () => {
   it("handles download when platform path is already set", async () => {
     callableMocks["search_roms"].mockResolvedValue([makeRom()]);
     callableMocks["settings_getSetting"].mockResolvedValue({ nes: "/roms/nes" });
+    callableMocks["download_rom"].mockResolvedValue({
+      status: "done",
+      path: "/roms/nes/super_mario_bros.nes",
+      extracted: null,
+    } satisfies DownloadResult);
 
     const user = userEvent.setup();
     render(<LibraryPage />);
@@ -214,8 +224,9 @@ describe("LibraryPage", () => {
     await user.click(screen.getByTestId("rom-card"));
 
     await waitFor(() => {
+      expect(callableMocks["download_rom"]).toHaveBeenCalledWith(1, "nes");
       expect(toaster.toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Ready to download", body: "Will download to: /roms/nes" })
+        expect.objectContaining({ title: "Download Complete" })
       );
     });
     // Shouldn't prompt for file picker
@@ -225,6 +236,11 @@ describe("LibraryPage", () => {
   it("prompts for path when platform path is missing and saves it", async () => {
     callableMocks["search_roms"].mockResolvedValue([makeRom()]);
     callableMocks["settings_getSetting"].mockResolvedValue({}); // No paths
+    callableMocks["download_rom"].mockResolvedValue({
+      status: "done",
+      path: "/new/nes/path/super_mario_bros.nes",
+      extracted: null,
+    } satisfies DownloadResult);
     
     // Type casting mock to interact with it
     const mockFilePicker = openFilePicker as ReturnType<typeof vi.fn>;
@@ -249,8 +265,10 @@ describe("LibraryPage", () => {
       expect(mockFilePicker).toHaveBeenCalledWith(1, "/home", false, true);
       expect(callableMocks["settings_setSetting"]).toHaveBeenCalledWith("platformPaths", { nes: "/new/nes/path" });
       expect(callableMocks["settings_commit"]).toHaveBeenCalled();
+      // Should proceed to download after path is saved
+      expect(callableMocks["download_rom"]).toHaveBeenCalledWith(1, "nes");
       expect(toaster.toast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Ready to download", body: "Will download to: /new/nes/path" })
+        expect.objectContaining({ title: "Download Complete" })
       );
     });
   });
@@ -278,11 +296,66 @@ describe("LibraryPage", () => {
       expect(mockFilePicker).toHaveBeenCalled();
     });
     
-    // Since it was cancelled, it shouldn't proceed to save or show ready
+    // Since it was cancelled, it shouldn't proceed to download
     expect(callableMocks["settings_setSetting"]).not.toHaveBeenCalled();
-    expect(toaster.toast).not.toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Ready to download" })
+    expect(callableMocks["download_rom"]).not.toHaveBeenCalled();
+  });
+
+  it("shows 'Download Failed' toast when download backend errors", async () => {
+    callableMocks["search_roms"].mockResolvedValue([makeRom()]);
+    callableMocks["settings_getSetting"].mockResolvedValue({ nes: "/roms/nes" });
+    callableMocks["download_rom"].mockRejectedValue(
+      new Error("Download failed (HTTP 500)")
     );
+
+    const user = userEvent.setup();
+    render(<LibraryPage />);
+
+    await user.type(screen.getByLabelText("Search ROMs"), "mario");
+    await user.click(screen.getByText("Search"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rom-card")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("rom-card"));
+
+    await waitFor(() => {
+      expect(toaster.toast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Download Failed" })
+      );
+    });
+  });
+
+  it("shows zip extraction info when ROM was a zip", async () => {
+    callableMocks["search_roms"].mockResolvedValue([makeRom()]);
+    callableMocks["settings_getSetting"].mockResolvedValue({ nes: "/roms/nes" });
+    callableMocks["download_rom"].mockResolvedValue({
+      status: "done",
+      path: "/roms/nes",
+      extracted: ["track01.bin", "track01.cue"],
+    } satisfies DownloadResult);
+
+    const user = userEvent.setup();
+    render(<LibraryPage />);
+
+    await user.type(screen.getByLabelText("Search ROMs"), "mario");
+    await user.click(screen.getByText("Search"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rom-card")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId("rom-card"));
+
+    await waitFor(() => {
+      expect(toaster.toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Download Complete",
+          body: "Extracted 2 file(s) to /roms/nes",
+        })
+      );
+    });
   });
 });
 
@@ -330,5 +403,30 @@ describe("RomCard", () => {
 
     await user.click(screen.getByTestId("rom-card"));
     expect(handleSelect).toHaveBeenCalledWith(rom);
+  });
+
+  it("shows downloading indicator when downloading is true", () => {
+    const rom = makeRom();
+    render(<RomCard rom={rom} onSelect={vi.fn()} downloading={true} />);
+
+    expect(screen.getByTestId("downloading-indicator")).toBeInTheDocument();
+    expect(screen.getByText("Downloading…")).toBeInTheDocument();
+  });
+
+  it("does not show downloading indicator by default", () => {
+    const rom = makeRom();
+    render(<RomCard rom={rom} onSelect={vi.fn()} />);
+
+    expect(screen.queryByTestId("downloading-indicator")).not.toBeInTheDocument();
+  });
+
+  it("does not call onSelect when downloading", async () => {
+    const rom = makeRom();
+    const handleSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<RomCard rom={rom} onSelect={handleSelect} downloading={true} />);
+
+    await user.click(screen.getByTestId("rom-card"));
+    expect(handleSelect).not.toHaveBeenCalled();
   });
 });

@@ -23,9 +23,19 @@ export interface RomSearchResult {
   url_cover: string | null;
 }
 
+/** Shape returned by the Python `download_rom` backend method. */
+export interface DownloadResult {
+  status: "done";
+  path: string;
+  extracted: string[] | null;
+}
+
 // Python backend bridge
 const searchRoms = callable<[search_term: string, limit: number], RomSearchResult[]>(
   "search_roms",
+);
+const downloadRom = callable<[rom_id: number, platform_slug: string], DownloadResult>(
+  "download_rom",
 );
 const getSetting = callable<[key: string, defaults: unknown], unknown>(
   "settings_getSetting",
@@ -42,6 +52,7 @@ export const LibraryPage: FC = () => {
   const [results, setResults] = useState<RomSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [downloadingIds, setDownloadingIds] = useState<Set<number>>(new Set());
 
   const onSearch = useCallback(async () => {
     if (!query.trim()) return;
@@ -95,15 +106,34 @@ export const LibraryPage: FC = () => {
         }
       }
 
+      // Start the actual download
+      setDownloadingIds((prev) => new Set(prev).add(rom.id));
+
       toaster.toast({
-        title: "Ready to download",
-        body: `Will download to: ${path}`, // Placeholder until actual download is implemented
+        title: "Downloading…",
+        body: `${rom.name ?? rom.file_name} → ${path}`,
+      });
+
+      const dlResult = await downloadRom(rom.id, rom.platform_slug);
+
+      const isZip = dlResult.extracted != null;
+      toaster.toast({
+        title: "Download Complete",
+        body: isZip
+          ? `Extracted ${dlResult.extracted!.length} file(s) to ${dlResult.path}`
+          : `Saved to ${dlResult.path}`,
       });
     } catch (e) {
-      console.error("Error setting download path:", e);
+      console.error("Download failed:", e);
       toaster.toast({
-        title: "Error",
-        body: "Failed to configure download path.",
+        title: "Download Failed",
+        body: String(e),
+      });
+    } finally {
+      setDownloadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(rom.id);
+        return next;
       });
     }
   };
@@ -149,7 +179,12 @@ export const LibraryPage: FC = () => {
             }}
           >
             {results.map((rom) => (
-              <RomCard key={rom.id} rom={rom} onSelect={handleSelectRom} />
+              <RomCard
+                key={rom.id}
+                rom={rom}
+                onSelect={handleSelectRom}
+                downloading={downloadingIds.has(rom.id)}
+              />
             ))}
           </Focusable>
         </PanelSection>
@@ -165,21 +200,27 @@ export const LibraryPage: FC = () => {
 const PLACEHOLDER_COVER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='160' fill='%23333'%3E%3Crect width='120' height='160'/%3E%3Ctext x='50%25' y='50%25' fill='%23888' font-size='12' text-anchor='middle' dy='.3em'%3ENo Cover%3C/text%3E%3C/svg%3E";
 
-export const RomCard: FC<{ rom: RomSearchResult; onSelect: (rom: RomSearchResult) => void }> = ({ rom, onSelect }) => {
+export const RomCard: FC<{
+  rom: RomSearchResult;
+  onSelect: (rom: RomSearchResult) => void;
+  downloading?: boolean;
+}> = ({ rom, onSelect, downloading = false }) => {
   const coverUrl = rom.url_cover ?? PLACEHOLDER_COVER;
 
   return (
     <Focusable
       data-testid="rom-card"
-      onClick={() => onSelect(rom)}
+      onClick={() => !downloading && onSelect(rom)}
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         textAlign: "center",
-        cursor: "pointer",
+        cursor: downloading ? "wait" : "pointer",
         padding: "8px",
         borderRadius: "4px",
+        opacity: downloading ? 0.6 : 1,
+        position: "relative",
       }}
     >
       <img
@@ -193,6 +234,25 @@ export const RomCard: FC<{ rom: RomSearchResult; onSelect: (rom: RomSearchResult
           backgroundColor: "#222",
         }}
       />
+      {downloading && (
+        <div
+          data-testid="downloading-indicator"
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            background: "rgba(0,0,0,0.7)",
+            color: "#fff",
+            padding: "4px 10px",
+            borderRadius: "4px",
+            fontSize: "11px",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Downloading…
+        </div>
+      )}
       <span
         style={{
           marginTop: "4px",
