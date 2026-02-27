@@ -1,5 +1,6 @@
 import {
   ButtonItem,
+  Navigation,
   PanelSection,
   PanelSectionRow,
   staticClasses
@@ -10,10 +11,11 @@ import {
   callable,
   definePlugin,
   toaster,
-  // routerHook
+  routerHook,
 } from "@decky/api"
 import { useState } from "react";
 import { FaShip } from "react-icons/fa";
+import { SettingsPage, SETTINGS_ROUTE } from "./Settings";
 
 // import logo from "../assets/logo.png";
 
@@ -36,51 +38,47 @@ function Content() {
   };
 
   return (
-    <PanelSection title="Panel Section">
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={onClick}
-        >
-          {result ?? "Add two numbers via Python"}
-        </ButtonItem>
-      </PanelSectionRow>
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={() => startTimer()}
-        >
-          {"Start Python timer"}
-        </ButtonItem>
-      </PanelSectionRow>
+    <>
+      <PanelSection title="Panel Section">
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={onClick}
+          >
+            {result ?? "Add two numbers via Python"}
+          </ButtonItem>
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={() => startTimer()}
+          >
+            {"Start Python timer"}
+          </ButtonItem>
+        </PanelSectionRow>
+      </PanelSection>
 
-      {/* <PanelSectionRow>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <img src={logo} />
-        </div>
-      </PanelSectionRow> */}
-
-      {/*<PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={() => {
-            Navigation.Navigate("/decky-plugin-test");
-            Navigation.CloseSideMenus();
-          }}
-        >
-          Router
-        </ButtonItem>
-      </PanelSectionRow>*/}
-    </PanelSection>
+      <PanelSection title="Configuration">
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={() => {
+              Navigation.Navigate(SETTINGS_ROUTE);
+              Navigation.CloseSideMenus();
+            }}
+          >
+            Settings
+          </ButtonItem>
+        </PanelSectionRow>
+      </PanelSection>
+    </>
   );
 };
 
 export default definePlugin(() => {
   console.log("Template plugin initializing, this is called once on frontend startup")
 
-  // serverApi.routerHook.addRoute("/decky-plugin-test", DeckyPluginRouterTest, {
-  //   exact: true,
-  // });
+  routerHook.addRoute(SETTINGS_ROUTE, SettingsPage, { exact: true });
 
   // Add an event listener to the "timer_event" event from the backend
   const listener = addEventListener<[
@@ -108,7 +106,7 @@ export default definePlugin(() => {
     onDismount() {
       console.log("Unloading")
       removeEventListener("timer_event", listener);
-      // serverApi.routerHook.removeRoute("/decky-plugin-test");
+      routerHook.removeRoute(SETTINGS_ROUTE);
     },
   };
 });
