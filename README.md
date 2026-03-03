@@ -1,6 +1,6 @@
 # RomM Client for Decky Loader
 
-> **AI-Generated Project** — This entire project (plugin code, backend, tests, build scripts, and documentation) was generated with the assistance of AI (GitHub Copilot / Claude). All code should be reviewed before use in production. I just wanted a simple way to import roms from my RomM server, and this works good enough. 
+> **AI-Generated Project** — This entire project (plugin code, backend, tests, build scripts, and documentation) was generated with the assistance of AI (GitHub Copilot / Claude). All code should be reviewed before use in production. I just wanted a simple way to import roms from my RomM server, and this works good enough. If you have moral or other opinions about using AI in this way recommend to not use this plugin.
 
 A [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader) plugin that lets you browse and download ROMs from your [RomM](https://github.com/rommapp/romm) server directly on your Steam Deck.
 
