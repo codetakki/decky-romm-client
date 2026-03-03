@@ -1,5 +1,7 @@
 # RomM Client for Decky Loader
 
+> **AI-Generated Project** — This entire project (plugin code, backend, tests, build scripts, and documentation) was generated with the assistance of AI (GitHub Copilot / Claude). All code should be reviewed before use in production. I just wanted a simple way to import roms from my RomM server, and this works good enough. 
+
 A [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader) plugin that lets you browse and download ROMs from your [RomM](https://github.com/rommapp/romm) server directly on your Steam Deck.
 
 ## Features
@@ -9,6 +11,21 @@ A [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader) plugin that 
 - **Automatic zip extraction** — multi-file ROMs that arrive as zips are extracted automatically
 - **Per-platform paths** — configure where ROMs for each platform are saved
 - **Cover art** — ROM cards display cover images from your RomM server
+
+## RomM OpenAPI SDK
+
+This plugin uses a Python API client generated from the [RomM](https://github.com/rommapp/romm) OpenAPI specification. The client lives in [`rom-m-api-client/`](rom-m-api-client/) and was generated with [openapi-python-client](https://github.com/openapi-generators/openapi-python-client).
+
+| Detail | Value |
+|---|---|
+| **Package** | `rom-m-api-client` v4.6.1 |
+| **Python** | ≥ 3.10 |
+| **HTTP library** | [httpx](https://www.python-httpx.org/) `>=0.23.0,<0.29.0` |
+| **Serialization** | [attrs](https://www.attrs.org/) `>=22.2.0` |
+
+The SDK provides both **sync** and **async** methods for every endpoint. The plugin backend ([`main.py`](main.py)) uses a thin wrapper ([`py_modules/romm_client.py`](py_modules/romm_client.py)) to authenticate and call the SDK from within the Decky Python sandbox.
+
+For full SDK usage details, see [rom-m-api-client/README.md](rom-m-api-client/README.md).
 
 ## Setup
 
