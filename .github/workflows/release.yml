@@ -25,6 +25,9 @@ jobs:
             "https://github.com/SteamDeckHomebrew/cli/releases/latest/download/decky-linux-x86_64"
           chmod +x cli/decky
 
+      - name: Install Python dependencies into py_modules
+        run: bash scripts/install-py-deps.sh
+
       - name: Build plugin zip
         run: |
           sudo cli/decky plugin build -b -o out .
