@@ -27,6 +27,29 @@ The SDK provides both **sync** and **async** methods for every endpoint. The plu
 
 For full SDK usage details, see [rom-m-api-client/README.md](rom-m-api-client/README.md).
 
+## Installation
+
+> **Prerequisite:** [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader) must be installed on your Steam Deck.
+
+1. Open Decky Loader's settings (gear icon in the Decky sidebar)
+2. Enable **Developer mode**
+3. Install the plugin using **one** of these methods:
+
+### Option A — Install from ZIP
+
+1. Download the latest `RomM Client.zip` from the [Releases](../../releases/latest) page
+2. Transfer the zip to your Steam Deck (USB, SSH, SMB, etc.)
+3. In Decky's developer menu, choose **Install Plugin From ZIP File**
+4. Browse to the zip and confirm
+
+### Option B — Install from URL
+
+1. Copy the direct download URL of `RomM Client.zip` from the [latest release](../../releases/latest) (right-click → Copy link)
+2. In Decky's developer menu, choose **Install Plugin From URL**
+3. Paste the URL and confirm
+
+After installation, restart Decky if prompted — the plugin will appear in the sidebar.
+
 ## Setup
 
 ### Prerequisites
